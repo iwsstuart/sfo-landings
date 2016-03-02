@@ -76,6 +76,12 @@ h5 {
 	font-size: 1.2em;
 }
 
+.axis-label {
+  font-family: "proxima-nova";
+  font-weight: 400;
+  font-size: 1.2em;
+}
+
 #filters {
 	width: 140px;
 /*  height: 100%;
@@ -97,7 +103,7 @@ h5 {
 #charts { 
 	width: calc(100% - 200px);
 	position: absolute;
-	left: 200px;
+	left: 210px;
 }
 
 </style>
@@ -127,7 +133,7 @@ h5 {
 <script>try{Typekit.load({ async: true });}catch(e){}</script>
 <script>
 
-var margin = {top: 45, right: 30, bottom: 30, left: 45},
+var margin = {top: 45, right: 45, bottom: 45, left: 60},
     width = 300,
     height = 100;
 
@@ -268,6 +274,19 @@ d3.csv("MonthlyAircraftLandingData_200507_to_201509.csv", function(error, data) 
   	.attr("x", 0)
   	.attr("y", -15)
   	.attr("class", "header");
+
+  // Axis labels
+  svg.append("text")
+    .text("Date")
+    .attr("text-anchor", "middle")
+    .attr("class", "axis-label")
+    .attr("transform", "translate(" + (width/2) + "," + (height+35) + ")"); 
+
+  svg.append("text")
+    .text("Landing Count")
+    .attr("text-anchor", "middle")
+    .attr("class", "axis-label")
+    .attr("transform", "translate(" + -45 + "," + (height/2) + ")rotate(-90)"); 
 
   // Vertical rules
   var rules = svg.selectAll("g.rule")
