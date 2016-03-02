@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, input, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td {
+    margin: 0;
+    padding: 0;
+    font-weight: normal;
+    text-decoration:none;
+    color:inherit;
+    list-style: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font: 10px sans-serif;
+  margin: 0;
+  margin-top: 25px;
+}
+
+div {
+  float: left;
+}
+
+h5 {
+	font-family: "proxima-nova";
+	font-size: 1.5em;
+	font-weight: 300;
+	letter-spacing: 1px;
+}
+
+.line {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1px;
+}
+
+.rule line {
+  stroke: #ddd;
+  stroke-width: 0.5px;
+}
+
+.area {
+  fill: #e7e7e7;
+}
+
+.axis {
+  stroke: #aaa;
+  stroke-width: 0.5px;
+}
+
+.xaxis path {
+	fill: none;
+	stroke: black;
+	stroke-width: 1px;
+}
+
+.yaxis path {
+	fill: none;
+	stroke: black;
+	stroke-width: 1px;
+}
+
+.header {
+	font-family: "proxima-nova";
+	font-weight: 700;
+	font-size: 1.2em;
+}
+
+#filters {
+	width: 140px;
+/*  height: 100%;
+*/  margin: 0 30px 30px;
+	position: fixed;
+	top: 30px;
+	left: 0;
+	float: left;
+}
+
+#filters li {
+	height: 40px;
+	line-height: 40px;
+	border-bottom: 1px solid #aaa;
+}
+
+#filters li:hover { cursor: pointer; }
+
+#charts { 
+	width: calc(100% - 200px);
+	position: absolute;
+	left: 200px;
+}
+
+</style>
+<body>
+<div id="filters">
+	<ul>
+    <li id="all"><h5>All Aircraft</h5></li>			
+    <li id="727"><h5>B727</h5></li>			
+    <li id="737"><h5>B737</h5></li>			
+    <li id="747"><h5>B747</h5></li>			
+    <li id="757"><h5>B757</h5></li>			
+    <li id="767"><h5>B767</h5></li>			
+    <li id="777"><h5>B777</h5></li>			
+    <li id="787"><h5>B787</h5></li>			
+    <li id="A319"><h5>A319</h5></li>			
+    <li id="A320"><h5>A320</h5></li>			
+    <li id="A321"><h5>A321</h5></li>			
+<!-- 	    <li id="A330"><h5>A330</h5></li>			
+    <li id="A340"><h5>A340</h5></li>			
+    <li id="A380"><h5>A380</h5></li> -->			
+	</ul>
+</div>
+<div id="charts"></div>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://use.typekit.net/bwy0xzf.js"></script>
+<script>try{Typekit.load({ async: true });}catch(e){}</script>
+<script>
+
+var margin = {top: 45, right: 30, bottom: 30, left: 45},
+    width = 300,
+    height = 100;
+
+var parseDate = d3.time.format("%Y%m").parse;
+
+var x = d3.time.scale()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var area = d3.svg.area()
+    .x(function(d) { return x(parseDate(d.key)); })
+    .y0(height)
+    .y1(function(d) { return y(d.values.total_landings); });
+
+var line = d3.svg.line()
+    .x(function(d) { return x(parseDate(d.key)); })
+    .y(function(d) { return y(d.values.total_landings); });
+
+var lineByModel = d3.svg.line()
+    .x(function(d) { return x(parseDate(d.key)); })
+    .y(function(d) { return y(d.total_landings); });
+
+
+var airlineMonth, airlineMonthModel, maxLandingsAll;
+
+function nestByModel() {
+
+	d3.csv("MonthlyAircraftLandingData_200507_to_201509.csv", function(error, data) {
+    airlineMonthModel = d3.nest()
+      .key(function(d) { return d.Operating_Airline; })
+      .key(function(d) { return d.Activity_Period; })
+      .key(function(d) { return d.Aircraft_Model; })
+      .rollup(function(d) { return { 
+        "total_landings": d3.sum(d, function(g) { return g.Landing_Count; })
+      } })
+      .entries(data);	
+	});
+
+}
+
+
+d3.csv("MonthlyAircraftLandingData_200507_to_201509.csv", function(error, data) {
+
+  // Nest data by airline and then month, sum landing count at leaf level.
+  airlineMonth = d3.nest()
+    .key(function(d) { return d.Operating_Airline; })
+    .key(function(d) { return d.Activity_Period; })
+    .rollup(function(d) { return { 
+    	"total_landings": d3.sum(d, function(g) { return g.Landing_Count; })
+    } })
+    .entries(data);
+
+  // Nest data by airline, then month, then model; sum landing count at leaf level.
+  airlineMonthModel = d3.nest()
+	  .key(function(d) { return d.Operating_Airline; })
+	  .key(function(d) { return d.Activity_Period; })
+   	  .key(function(d) { return d.Aircraft_Model; })
+	  .rollup(function(d) { return { 
+		"total_landings": d3.sum(d, function(g) { return g.Landing_Count; })
+	  } })
+	  .entries(data);	    
+
+// Compute the maximum monthly landings per airline, needed for the y-domain and filtering.
+  airlineMonth.forEach(function(s) {
+    s.maxLandings = d3.max(s.values, function(d) {
+      return d.values.total_landings;
+    });
+  });
+
+  // Filter dataset to airlines with at least one month over 200 landings.
+  var filteredData = airlineMonth.filter(function(d) {
+  	return d.maxLandings > 200;
+  });
+
+  // Find the max number of landings in one month for all filtered airlines (used for y-domain).
+  maxLandingsAll = d3.max(filteredData, function(d) { return d.maxLandings; });
+
+  // Compute the minimum and maximum date across symbols.
+  // We assume values are sorted by date.
+  x.domain([
+  	d3.min(filteredData, function(d) { return parseDate(d.values[0].key); }),
+  	parseDate("201509")
+  ]);
+
+  // Add an SVG element for each airline, with the desired dimensions and margin.
+  svg = d3.select("#charts").selectAll("div")
+      .data(filteredData)
+    .enter().append("div").append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  // Add the area path elements. Note: the y-domain is set per element.
+  // svg.append("path")
+  //     .attr("class", "area")
+  //     .attr("d", function(d) { 
+  //     	y.domain([0, maxLandingsAll]); 
+  //     	return area(d.values); 
+  //     });
+
+  // Add the line path elements. Note: the y-domain is set per element.
+  svg.append("path")
+    .attr("class", "line")
+    .attr("d", function(d) { 
+      // console.log(d);
+    	// console.log(d);
+    	y.domain([0, maxLandingsAll]); 
+    	return line(d.values); 
+    });
+
+  // Axes    
+  var xAxis = d3.svg.axis()
+    .scale(x)
+    .ticks(5)
+    .outerTickSize(0);
+
+  var yAxis = d3.svg.axis()
+    .scale(y)
+    .ticks(3)
+    .orient("left")
+    .outerTickSize(0);
+
+  svg.append("g")
+    .attr("class", "xaxis")
+    .attr("transform", "translate(0, " + height + ")")
+  	.call(xAxis);
+
+  svg.append("g")
+    .attr("class", "yaxis")
+  	.call(yAxis);	
+
+  // Add headers
+  svg.append("text")
+  	.text(function(d) { return d.key; })
+  	.attr("x", 0)
+  	.attr("y", -15)
+  	.attr("class", "header");
+
+  // Vertical rules
+  var rules = svg.selectAll("g.rule")
+    .data(x.ticks(d3.time.years, 2))
+  .enter().append("g")
+    .attr("class", "rule");
+
+  rules.append("line")
+    .attr("x1", x)
+    .attr("x2", x)
+    .attr("y1", 0)
+    .attr("y2", height);
+
+});
+
+
+// Redraw charts with with data filtered by aircraft model. 
+$('#filters li').click(function() {
+
+  var model = $(this).attr('id');
+
+  // Refresh data nested by aircraft model.
+  nestByModel();
+
+  airlineMonthModel.forEach(function(s) {
+    s.values.forEach(function(d) {
+      d.total_landings = d3.sum(d.values, function(d) { return d.values.total_landings; });
+    });
+    s.maxLandings = d3.max(s.values, function(d) {
+      return d.total_landings;
+    });
+  });
+
+  var filteredData = airlineMonthModel.filter(function(d) {
+    return d.maxLandings > 200;
+  });
+
+  // Remove data that doesn't match current selection; update total landings at month (internal node) level.
+  filteredData.forEach(function(d) {
+    d.values.forEach(function(g) {
+      for (var i = g.values.length - 1; i >= 0; i--) {        
+        if (g.values[i].key != model) {
+          // console.log(g.values[i]);
+          g.values.splice(i, 1);
+        }
+      }
+      if (g.values.length > 0) {
+        g.total_landings = g.values[0].values.total_landings;
+      } else {
+        g.total_landings = 0;        
+      }
+    });
+  });
+
+  filteredData.forEach(function(s) {
+    s.maxLandings = d3.max(s.values, function(d) {
+      return d.total_landings;
+    });
+  });
+
+  maxLandingsAll = d3.max(filteredData, function(d) { return d.maxLandings; });
+
+  var yAxis = d3.svg.axis()
+    .scale(y)
+    .ticks(3)
+    .orient("left")
+    .outerTickSize(0);
+
+  y.domain([0, maxLandingsAll]); 
+
+  // Redraw y-axis with new y domain.
+  d3.selectAll('svg').select('g.yaxis')
+    .call(yAxis); 
+
+  // Redraw paths with new filtered data.
+  d3.selectAll("path.line")
+		  .data(filteredData)
+		.transition()
+		.duration(500)
+		  .attr("d", function(d) { 
+		    y.domain([0, maxLandingsAll]); 
+		    // console.log(d);
+		    return lineByModel(d.values);      
+
+});
+
+});
+
+</script>
