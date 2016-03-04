@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<style>
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, input, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td {
+    margin: 0;
+    padding: 0;
+    font-weight: normal;
+    text-decoration:none;
+    color:inherit;
+    list-style: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font: 10px sans-serif;
+  margin: 0;
+}
+
+#map { 
+/*	width: calc(100% - 200px);
+	position: absolute;
+	left: 210px;*/
+}
+
+</style>
+<body>
+
+<script src="//d3js.org/d3.v3.min.js"></script>
+
+<!-- World map data, if saved as variable in external file
+ --><script src="world.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="https://use.typekit.net/bwy0xzf.js"></script>
+<script>try{Typekit.load({ async: true });}catch(e){}</script>
+<script>
+
+var width = window.innerWidth, height = window.innerHeight;
+
+var svg = d3.select('body')
+            .append( "svg" )
+            .attr( "width", width )
+            .attr( "height", height );
+
+var worldmap = svg.append('g');
+
+var mercatorProj = d3.geo.mercator()
+  .scale( 150 )
+  .center( [0, 0] )
+  .translate( [width/2,height/2] );
+
+var geoPath = d3.geo.path()
+  .projection( mercatorProj );
+
+
+d3.json("world.json", function(error, data) {
+
+  worldmap.selectAll( "path" )
+    .data( data.features )
+    .enter()
+    .append( "path" )
+    .attr( "fill", "#777" )
+    .attr( "d", geoPath );
+  
+});
+
+</script>
+
+
+</body>
+</html>
