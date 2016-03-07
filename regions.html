@@ -27,14 +27,68 @@ body {
   margin: 0;
 }
 
-#map { 
-/*	width: calc(100% - 200px);
-	position: absolute;
-	left: 210px;*/
+h5 {
+  font-family: "proxima-nova";
+  font-size: 1.5em;
+  font-weight: 300;
+  letter-spacing: 1px;
 }
+
+#map { 
+	width: calc(100% - 200px);
+	position: absolute;
+	left: 210px;
+}
+
+#filters {
+  width: 140px;
+  margin: 0 30px 30px;
+  position: fixed;
+  top: 30px;
+  left: 0;
+}
+
+#filters li {
+  height: 40px;
+  line-height: 40px;
+  border-bottom: 1px solid #aaa;
+}
+
+#filters li:hover { cursor: pointer; }
+
+.q0-9 { fill:rgb(238,242,247); }
+.q1-9 { fill:rgb(222,235,247); }
+.q2-9 { fill:rgb(198,219,239); }
+.q3-9 { fill:rgb(158,202,225); }
+.q4-9 { fill:rgb(107,174,214); }
+.q5-9 { fill:rgb(66,146,198); }
+.q6-9 { fill:rgb(33,113,181); }
+.q7-9 { fill:rgb(8,81,156); }
+.q8-9 { fill:rgb(8,48,107); }
+.noData { fill:rgb(100,100,100); }
+
 
 </style>
 <body>
+<div id="filters">
+  <ul>
+    <li id="all"><h5>All Aircraft</h5></li>     
+    <li id="727"><h5>B727</h5></li>     
+    <li id="737"><h5>B737</h5></li>     
+    <li id="747"><h5>B747</h5></li>     
+    <li id="757"><h5>B757</h5></li>     
+    <li id="767"><h5>B767</h5></li>     
+    <li id="777"><h5>B777</h5></li>     
+    <li id="787"><h5>B787</h5></li>     
+    <li id="A319"><h5>A319</h5></li>      
+    <li id="A320"><h5>A320</h5></li>      
+    <li id="A321"><h5>A321</h5></li>      
+<!--      <li id="A330"><h5>A330</h5></li>      
+    <li id="A340"><h5>A340</h5></li>      
+    <li id="A380"><h5>A380</h5></li> -->      
+  </ul>
+</div>
+<div id="map"></div>
 
 <script src="//d3js.org/d3.v3.min.js"></script>
 
@@ -47,9 +101,7 @@ body {
 
 var width = window.innerWidth, height = window.innerHeight;
 
-console.log(width);
-
-var svg = d3.select('body')
+var svg = d3.select("#map")
             .append( "svg" )
             .attr( "width", width )
             .attr( "height", height );
@@ -66,41 +118,110 @@ var geoPath = d3.geo.path()
   .projection( mercatorProj );
 
 var regions = [
-  { "coords": [100.5, 28.5], "region": "Asia" },
-  { "coords": [153.5, -17.5], "region": "Australia / Oceania" },
-  { "coords": [-96.5, 62.5], "region": "Canada" },
-  { "coords": [-85, 12.5], "region": "Central America" },
-  { "coords": [25.4, 54.5], "region": "Europe" },
-  { "coords": [-100, 20], "region": "Mexico" },
-  { "coords": [48.5, 31], "region": "Middle East" },
-  { "coords": [-56.8, -12.8], "region": "South America" },
-  { "coords": [-99.5, 39.5], "region": "US" }
+  { "coords": [100.5, 28.5], "region_sfo": "Asia", "region_ne": "Asia" },
+  { "coords": [153.5, -17.5], "region_sfo": "Australia / Oceania", "region_ne": "Oceania" },
+  { "coords": [-96.5, 62.5], "region_sfo": "Canada", "region_ne": "Canada" },
+  { "coords": [-85, 12.5], "region_sfo": "Central America", "region_ne": "Central America" },
+  { "coords": [25.4, 54.5], "region_sfo": "Europe", "region_ne": "Europe" },
+  { "coords": [-100, 20], "region_sfo": "Mexico", "region_ne": "Mexico" },
+  { "coords": [48.5, 31], "region_sfo": "Middle East", "region_ne": "Middle East & North Africa" },
+  { "coords": [-56.8, -12.8], "region_sfo": "South America", "region_ne": "South America" },
+  { "coords": [-99.5, 39.5], "region_sfo": "US", "region_ne": "United States of America" }
 ];
 
-d3.json("world.json", function(error, data) {
 
-  worldmap.selectAll( "path" )
-    .data( data.features )
-    .enter()
-    .append( "path" )
-    .attr( "fill", "#777" )
-    .attr( "d", geoPath );
+var countByRegion, countByModelRegion;
+
+d3.csv("MonthlyAircraftLandingData_200507_to_201509.csv", function(error, data) {
+
+  // Nest data by region of flight origin
+  countByRegion = d3.nest()
+    .key(function(d) { return d.GEO_Region; })
+    .rollup(function(d) { return { 
+      "total_landings": d3.sum(d, function(g) { return g.Landing_Count; })
+    } })
+    .entries(data);
+
+  // Nest data by aircraft model and then region of flight origin
+  countByModelRegion = d3.nest()
+    .key(function(d) { return d.Aircraft_Model; })
+    .key(function(d) { return d.GEO_Region; })
+    .rollup(function(d) { return { 
+      "total_landings": d3.sum(d, function(g) { return g.Landing_Count; })
+    } })
+    .entries(data); 
+
+  // regionPoints.selectAll('circle')
+  //   .data(regions)
+  //   .enter()
+  //   .append("circle")
+  //   .attr('stroke', '#000')
+  //   .attr('opacity', 0.5)
+  //   .attr('r', function(d) {
+  //     var radius;
+  //     countByRegion.forEach(function(g) {
+  //       // console.log(g.key);
+  //       if (g.key == d.region) {
+  //         radius = Math.cbrt(g.values.total_landings);
+  //       }
+  //     });
+  //     return radius;
+  //   })
+  //   .attr('cx', function(d) {
+  //     return mercatorProj(d.coords)[0]; 
+  //   })
+  //   .attr('cy', function(d) { 
+  //     return mercatorProj(d.coords)[1]; 
+  //   });
+
+  var factorDomain = [];
+
+  // Populate array with totals from specified nodes
+  countByRegion.forEach(function(d) {
+      factorDomain.push(d.values.total_landings);
+    });
+
+  factorDomain.sort(function(a, b) { return a - b; });
+
+  // Function for mapping factor array (node totals) to color classes
+  var quantile = d3.scale.quantile()
+    .domain(factorDomain)
+    .range(d3.range(9).map(function(i) { return "q" + i + "-9"; }));
+
+  d3.json("world.json", function(error, data) {
+
+    worldmap.selectAll( "path" )
+      .data( data.features )
+      .enter()
+      .append( "path" )
+      .attr("fill", "rgb(200,200,200)")
+      .attr( "class", function(d) {
+        var color, centAmer;
+        countByRegion.forEach(function(i) {
+          if (d.properties.postal == i.key) {
+            color = quantile(i.values.total_landings);  
+          } else if (d.properties.admin == i.key) {
+            // console.log(i.key);
+            // console.log(i.values.total_landings);
+            color = quantile(i.values.total_landings);        
+          } else if (d.properties.region_wb.includes(i.key)) {
+            color = quantile(i.values.total_landings);
+          } else if (i.key.includes(d.properties.continent)) {
+            color = quantile(i.values.total_landings);
+          } else if (d.properties.subregion == i.key) {
+            centAmer = i.values.total_landings;
+          }
+        }); 
+        if (d.properties.subregion == "Central America" && d.properties.admin != "Mexico") {
+          color = quantile(centAmer);
+        }
+        return color;
+      })
+      .attr( "d", geoPath );
   
-});
-
-regionPoints.selectAll('circle')
-  .data(regions)
-  .enter()
-  .append("circle")
-  .attr('fill', '#000')
-  .attr('r', '10px')
-  .attr('cx', function(d) {
-    return mercatorProj(d.coords)[0]; 
-  })
-  .attr('cy', function(d) { 
-    return mercatorProj(d.coords)[1]; 
   });
-  
+
+});
 
 </script>
 
